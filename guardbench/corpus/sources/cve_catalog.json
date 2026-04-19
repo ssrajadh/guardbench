@@ -1,0 +1,262 @@
+[
+  {
+    "cve_id": "CVE-2025-68143",
+    "affected_component": "Anthropic mcp-server-git (git_init tool)",
+    "root_cause": "path_traversal",
+    "payload_summary": "The git_init tool accepts arbitrary filesystem paths during repository creation without validation. An attacker delivering a malicious prompt can cause the server to turn any directory (including sensitive system paths) into a Git repository, bypassing the intended repository confinement.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1083",
+    "source_url": "https://thehackernews.com/2026/01/three-flaws-in-anthropic-mcp-git-server.html",
+    "notes": "Disclosed January 2026 as part of a three-CVE chain against Anthropic's reference Git MCP server. Fixed in 2025.9.25."
+  },
+  {
+    "cve_id": "CVE-2025-68144",
+    "affected_component": "Anthropic mcp-server-git (git_diff, git_checkout)",
+    "root_cause": "shell_injection",
+    "payload_summary": "User-controlled arguments are passed directly to the git CLI without sanitization. An attacker who can influence the agent's prompt can inject additional git flags (e.g. --upload-pack) leading to arbitrary command execution via git's filter mechanisms.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1059",
+    "source_url": "https://thehackernews.com/2026/01/three-flaws-in-anthropic-mcp-git-server.html",
+    "notes": "Classified here as shell_injection because the attack is argument injection into a subprocess; CVSS 8.1. Fixed in 2025.12.18."
+  },
+  {
+    "cve_id": "CVE-2025-68145",
+    "affected_component": "Anthropic mcp-server-git (--repository flag)",
+    "root_cause": "path_traversal",
+    "payload_summary": "The --repository flag validation can be bypassed, allowing the server to operate on repositories outside the intended base directory. Combined with the Filesystem MCP server this enables writing malicious .git/config files and achieving RCE.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1083",
+    "source_url": "https://thehackernews.com/2026/01/three-flaws-in-anthropic-mcp-git-server.html",
+    "notes": "Third of the Anthropic Git MCP chain. CVSS 7.1. Fixed in 2025.12.18."
+  },
+  {
+    "cve_id": "CVE-2026-0755",
+    "affected_component": "gemini-mcp-tool",
+    "root_cause": "shell_injection",
+    "payload_summary": "The package passes unsanitized user-controlled input to execAsync shell invocations. A network-reachable, unauthenticated attacker can trigger arbitrary OS command execution through crafted MCP tool parameters.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1059",
+    "source_url": "https://www.heyuan110.com/posts/ai/2026-03-10-mcp-security-2026/",
+    "notes": "CVSS 9.8, unauthenticated RCE. Disclosed during Jan-Feb 2026 wave."
+  },
+  {
+    "cve_id": "CVE-2026-0756",
+    "affected_component": "GitHub Kanban MCP Server",
+    "root_cause": "shell_injection",
+    "payload_summary": "The server exposes MCP tools that construct shell commands from user-controlled arguments, allowing arbitrary command execution through the tool interface when the agent is prompted with crafted task content.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1059",
+    "source_url": "https://vulnerablemcp.info/",
+    "notes": "Disclosed January 20, 2026. Impact rating 9/10."
+  },
+  {
+    "cve_id": "CVE-2026-23744",
+    "affected_component": "MCPJam Inspector (<= 1.4.2)",
+    "root_cause": "auth_bypass",
+    "payload_summary": "MCPJam Inspector listens on 0.0.0.0 by default with no authentication on a critical endpoint. A single crafted HTTP request installs an attacker-controlled MCP server and executes arbitrary code on the host.",
+    "cosai_suggested_category": "T6",
+    "mitre_suggested_technique": "T1190",
+    "source_url": "https://vulnerablemcp.info/vuln/cve-2026-23744-mcpjam-inspector-rce.html",
+    "notes": "CVSS 9.8. Final call: root_cause=auth_bypass, CoSAI=T6 (insecure defaults). Missing-auth-on-privileged-endpoint is the root enabler; the RCE is the impact, not the cause."
+  },
+  {
+    "cve_id": "CVE-2026-25536",
+    "affected_component": "MCP TypeScript SDK (StreamableHTTPServerTransport, v1.10.0-1.25.3)",
+    "root_cause": "other",
+    "payload_summary": "When a single McpServer reuses a StreamableHTTPServerTransport across multiple clients, responses can be misrouted so one client receives data intended for another. This leaks request/response bodies across tenant boundaries.",
+    "cosai_suggested_category": "T9",
+    "mitre_suggested_technique": "T1530",
+    "source_url": "https://vulnerablemcp.info/vuln/cve-2026-25536-sdk-cross-client-data-leak.html",
+    "notes": "CVSS 7.1. Final call: root_cause=other (session/response-routing flaw doesn't fit the 5 named buckets), CoSAI=T9. Cross-tenant response leakage is unambiguously a data-exfiltration outcome; keeping T9."
+  },
+  {
+    "cve_id": "CVE-2026-27825",
+    "affected_component": "mcp-atlassian (Confluence attachment download tools, < 0.17.0)",
+    "root_cause": "path_traversal",
+    "payload_summary": "download_attachment and download_content_attachments accept an attacker-supplied target path and write files without base-directory confinement or symlink checks. A network-adjacent unauthenticated attacker can overwrite ~/.ssh/authorized_keys or /etc/cron.d/ entries for RCE.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1505.003",
+    "source_url": "https://arcticwolf.com/resources/blog-uk/cve-2026-27825-critical-unauthenticated-rce-and-ssrf-in-mcp-atlassian/",
+    "notes": "Disclosed February 24, 2026. Chained with CVE-2026-27826 SSRF for full RCE."
+  },
+  {
+    "cve_id": "CVE-2026-27826",
+    "affected_component": "mcp-atlassian (Atlassian base URL header handling, < 0.17.0)",
+    "root_cause": "ssrf",
+    "payload_summary": "The server honors caller-controlled Atlassian base URL headers without SSRF validation. An attacker can force the server to make outbound requests to arbitrary (including localhost and cloud metadata) endpoints, then have the response written via the attachment downloader.",
+    "cosai_suggested_category": "T5",
+    "mitre_suggested_technique": "T1090",
+    "source_url": "https://arcticwolf.com/resources/blog-uk/cve-2026-27825-critical-unauthenticated-rce-and-ssrf-in-mcp-atlassian/",
+    "notes": "Disclosed February 24, 2026 alongside CVE-2026-27825."
+  },
+  {
+    "cve_id": "CVE-2026-3484",
+    "affected_component": "PhialsBasement nmap-mcp-server (src/index.ts Nmap CLI handler)",
+    "root_cause": "shell_injection",
+    "payload_summary": "child_process.exec is called with user-controlled arguments in the Nmap CLI command handler. An attacker providing crafted target/flag inputs through the MCP tool call achieves arbitrary OS command execution.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1059",
+    "source_url": "https://advisories.gitlab.com/pkg/npm/mcp-nmap-server/CVE-2026-3484/",
+    "notes": "Representative of the 43%-of-CVEs shell-injection pattern across MCP servers."
+  },
+  {
+    "cve_id": "CVE-2026-30625",
+    "affected_component": "Upsonic 0.71.6 MCP server/task creation",
+    "root_cause": "shell_injection",
+    "payload_summary": "Maliciously crafted MCP tasks are deserialized/executed in a way that yields arbitrary code execution with the privileges of the Upsonic process. No authentication is required for network-reachable deployments.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1059",
+    "source_url": "https://cve.threatint.eu/CVE/CVE-2026-30625",
+    "notes": "Final call: root_cause=shell_injection, CoSAI=T3. The attack surface is a task-payload field parsed into execution; T3 (input validation) fits better than T6 because a benchmark can exercise it with a single crafted input."
+  },
+  {
+    "cve_id": "CVE-2026-31951",
+    "affected_component": "LibreChat (0.8.2-rc1 .. 0.8.3-rc1) MCP server config",
+    "root_cause": "other",
+    "payload_summary": "User-created MCP server configurations allow arbitrary HTTP headers. An attacker crafts a server entry whose outbound requests include the victim's OAuth token in attacker-controlled headers, exfiltrating credentials.",
+    "cosai_suggested_category": "T9",
+    "mitre_suggested_technique": "T1552.001",
+    "source_url": "https://www.cvedetails.com/cve/CVE-2026-31951/",
+    "notes": "Classified as 'other' root_cause (credential exfiltration via header injection); CoSAI T9 = output data exfiltration."
+  },
+  {
+    "cve_id": "CVE-2026-33032",
+    "affected_component": "nginx-ui MCP integration (MCPwn)",
+    "root_cause": "auth_bypass",
+    "payload_summary": "A missing authentication middleware call exposes all 12 nginx-ui MCP tools to any unauthenticated network caller. Two HTTP requests let the attacker rewrite Nginx configuration and trigger a reload, yielding full server takeover.",
+    "cosai_suggested_category": "T6",
+    "mitre_suggested_technique": "T1190",
+    "source_url": "https://www.esentire.com/security-advisories/nginx-ui-authentication-bypass-vulnerability-cve-2026-33032-exploited",
+    "notes": "CVSS 9.8, actively exploited in the wild as of April 2026. CVE reserved in the Jan-Feb 2026 wave per the '30 CVEs' writeup."
+  },
+  {
+    "cve_id": "CVE-2026-33989",
+    "affected_component": "@mobilenext/mobile-mcp (screen-capture tool)",
+    "root_cause": "path_traversal",
+    "payload_summary": "The mobile screen capture tool accepts a destination path without canonicalization or base-directory restriction, letting a prompt-injected caller write arbitrary files on the host running the MCP server.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1083",
+    "source_url": "https://advisories.gitlab.com/pkg/npm/@mobilenext/mobile-mcp/CVE-2026-33989/",
+    "notes": "npm package; representative of path-traversal class."
+  },
+  {
+    "cve_id": "CVE-2026-35402",
+    "affected_component": "mcp-neo4j-cypher (< 0.6.0)",
+    "root_cause": "ssrf",
+    "payload_summary": "The read_only mode can be bypassed using Neo4j CALL procedures such as apoc.load.json, allowing an attacker to issue write Cypher and trigger SSRF via apoc URL-loading procedures from the MCP server's network position.",
+    "cosai_suggested_category": "T5",
+    "mitre_suggested_technique": "T1190",
+    "source_url": "https://advisories.gitlab.com/pypi/mcp-neo4j-cypher/CVE-2026-35402/",
+    "notes": "Final call: root_cause=ssrf, CoSAI=T5. Data-modification is a side effect of the read_only bypass; the benchmark-relevant outcome is the SSRF (URL fetch from server's network position), which aligns with T5 guardrails on outbound traffic."
+  },
+  {
+    "cve_id": "CVE-2026-39313",
+    "affected_component": "mcp-framework (<= 0.2.21)",
+    "root_cause": "other",
+    "payload_summary": "readRequestBody() concatenates request body chunks without a size cap. An unauthenticated remote attacker sends an unbounded request body to exhaust memory and crash the MCP server process (DoS).",
+    "cosai_suggested_category": "T7",
+    "mitre_suggested_technique": "T1499.003",
+    "source_url": "https://cve.threatint.eu/CVE/CVE-2026-39313",
+    "notes": "Denial-of-service; fixed in 0.2.22. T7 = availability/DoS under CoSAI."
+  },
+  {
+    "cve_id": "CVE-2026-39884",
+    "affected_component": "mcp-server-kubernetes (port_forward tool)",
+    "root_cause": "shell_injection",
+    "payload_summary": "The port_forward tool builds a kubectl command via string concatenation with user-controlled input. A prompt-injected caller injects extra kubectl flags/arguments, achieving argument injection and potential command execution.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1059",
+    "source_url": "https://cve.threatint.eu/CVE/CVE-2026-39884",
+    "notes": "CVSS 8.3. Classic argument-injection pattern on an MCP wrapper around a CLI."
+  },
+  {
+    "cve_id": "CVE-2026-40576",
+    "affected_component": "excel-mcp-server (<= 0.1.7)",
+    "root_cause": "path_traversal",
+    "payload_summary": "In SSE or Streamable-HTTP transport mode, the server accepts caller-controlled file paths without confinement, letting an unauthenticated network attacker read, write, and overwrite arbitrary files on the host filesystem.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1083",
+    "source_url": "https://advisories.gitlab.com/pypi/excel-mcp-server/CVE-2026-40576/",
+    "notes": "Unauthenticated arbitrary file read/write."
+  },
+  {
+    "cve_id": "CVE-2026-40933",
+    "affected_component": "Flowise flowise-components (MCP adapter)",
+    "root_cause": "shell_injection",
+    "payload_summary": "The MCP adapter unsafely serializes stdio commands for user-configured MCP servers. An authenticated attacker can register an MCP stdio server whose command is an arbitrary shell invocation, yielding command execution.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1059",
+    "source_url": "https://advisories.gitlab.com/npm/flowise-components/CVE-2026-40933/",
+    "notes": "Authenticated RCE; often exposed because Flowise deployments are not hardened."
+  },
+  {
+    "cve_id": "CVE-2026-5058",
+    "affected_component": "aws-mcp-server",
+    "root_cause": "shell_injection",
+    "payload_summary": "The AWS CLI wrapper passes crafted user input into shell-invoked aws commands without sanitization. An unauthenticated attacker achieves RCE by smuggling shell metacharacters through MCP tool parameters.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1059",
+    "source_url": "https://www.heyuan110.com/posts/ai/2026-03-10-mcp-security-2026/",
+    "notes": "CVSS 9.8."
+  },
+  {
+    "cve_id": "CVE-2026-5741",
+    "affected_component": "docker-mcp-server (0.1.0)",
+    "root_cause": "shell_injection",
+    "payload_summary": "OS command injection in the MCP tools that wrap docker CLI invocations. Attacker-controlled container/image names or flags are interpolated into shell commands, yielding arbitrary execution on the Docker host.",
+    "cosai_suggested_category": "T3",
+    "mitre_suggested_technique": "T1059",
+    "source_url": "https://www.heyuan110.com/posts/ai/2026-03-10-mcp-security-2026/",
+    "notes": "Docker-socket access amplifies blast radius (container escape to host)."
+  },
+  {
+    "cve_id": "CVE-2026-26118",
+    "affected_component": "Microsoft Azure MCP Server Tools",
+    "root_cause": "ssrf",
+    "payload_summary": "An MCP tool accepts a caller-supplied URL and performs an outbound request without validation, letting an attacker reach the Azure IMDS and exfiltrate the managed-identity token from the server's environment.",
+    "cosai_suggested_category": "T5",
+    "mitre_suggested_technique": "T1552.005",
+    "source_url": "https://www.pointguardai.com/ai-security-incidents/microsoft-mcp-server-vulnerability-opens-door-to-ai-tool-hijacking-cve-2026-26118",
+    "notes": "Classic SSRF-to-cloud-credential pattern applied to MCP."
+  },
+  {
+    "cve_id": "CVE-2026-21852",
+    "affected_component": "Claude Code (enableAllProjectMcpServers config flag)",
+    "root_cause": "auth_bypass",
+    "payload_summary": "When enableAllProjectMcpServers is true, Claude Code auto-approves every MCP server declared in the project's .mcp.json without user confirmation. A committer can add a malicious MCP server that silently exfiltrates source code when the project is opened.",
+    "cosai_suggested_category": "T4",
+    "mitre_suggested_technique": "T1195.002",
+    "source_url": "https://dev.to/sattyamjjain/cve-2026-21852-how-enableallprojectmcpservers-leaks-your-entire-source-code-5ddc",
+    "notes": "Final call: root_cause=auth_bypass, CoSAI=T4. The auto-approve flag is the auth-bypass mechanism; exploitation is via a committed .mcp.json (supply-chain), so T4 captures the threat model more precisely than T6."
+  },
+  {
+    "cve_id": "CVE-2025-49596",
+    "affected_component": "MCP Inspector",
+    "root_cause": "auth_bypass",
+    "payload_summary": "MCP Inspector exposes an unauthenticated local endpoint that can be triggered by any web page the victim visits (DNS rebinding / drive-by), yielding arbitrary code execution on the developer's machine.",
+    "cosai_suggested_category": "T6",
+    "mitre_suggested_technique": "T1189",
+    "source_url": "https://www.heyuan110.com/posts/ai/2026-03-10-mcp-security-2026/",
+    "notes": "Pre-2026 (2025) but heavily referenced in the Jan-Feb 2026 writeup as the template flaw that MCPJam/nginx-ui recapitulated."
+  },
+  {
+    "cve_id": "CVE-2025-6514",
+    "affected_component": "mcp-remote npm package",
+    "root_cause": "shell_injection",
+    "payload_summary": "A crafted remote MCP server URL registered with mcp-remote is interpolated into a local command, letting a malicious server operator execute arbitrary commands on any client that connects.",
+    "cosai_suggested_category": "T4",
+    "mitre_suggested_technique": "T1059",
+    "source_url": "https://www.heyuan110.com/posts/ai/2026-03-10-mcp-security-2026/",
+    "notes": "Pre-2026 (2025) but actively exploited during Jan-Feb 2026; included as a supply-chain client-side analog to the server-side shell-injection class."
+  },
+  {
+    "cve_id": "CVE-2025-54136",
+    "affected_component": "Cursor IDE MCP trust mechanism (MCPoison)",
+    "root_cause": "tool_poisoning",
+    "payload_summary": "Cursor caches the user's trust decision for an MCP server and never re-validates after the definition changes. An attacker updates a previously-approved MCP server's command to a malicious payload, executed silently on next invocation.",
+    "cosai_suggested_category": "T4",
+    "mitre_suggested_technique": "T1195.002",
+    "source_url": "https://www.heyuan110.com/posts/ai/2026-03-10-mcp-security-2026/",
+    "notes": "Pre-2026 (2025). Included as the canonical tool-poisoning / trust-on-first-use CVE referenced throughout the Jan-Feb 2026 wave."
+  }
+]
