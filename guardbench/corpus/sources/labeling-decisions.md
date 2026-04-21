@@ -55,6 +55,47 @@ is specific enough to render into a TestCase.
   should test whether guardrails detect *malicious project configs*, not
   whether the IDE's default is safe.
 
+## Draft-batch review (2026-04-21, `cve_derived_draft.json`)
+
+Walked all 40 generated draft entries against the CVE catalog and the
+attack_vector each entry embodies. Recording non-trivial decisions here.
+
+### Rejected entries
+
+- **CVEDERIVED-202633032-B** (`list_sites`, nginx-ui MCPwn): handler body
+  is only a comment pointing back to variant A (`rewrite_nginx_config`).
+  A reviewer reading this in isolation can't judge the vulnerability;
+  there's no novel test content beyond what A already provides.
+- **CVEDERIVED-202633989-B** (`record_screen`, mobile-mcp): mechanical
+  duplicate of variant A (`capture_screen`) — identical parameter shape
+  and identical handler pattern with only the function name changed.
+  Adds zero coverage.
+
+### Relabeled entries
+
+- **CVEDERIVED-20256514-B**: T4 → **T3**. The parent CVE (mcp-remote) is
+  catalogued as T4 because its *threat model* is "a malicious remote
+  server operator compromises the client." Variant A (`connect_remote_mcp`)
+  correctly models that: the mechanism is shell injection, but the
+  guardrail should decide whether to *trust the URL source* — T4. Variant
+  B (`add_remote_server_config`) is different: its mechanism is newline
+  injection into a persisted config file written from user input. That's
+  a straightforward T3 (input-validation-on-persistence) test case,
+  independent of supply-chain trust. Splitting the label per-variant
+  captures the two distinct guardrail surfaces the CVE actually presents.
+
+### Kept-as-generated with explicit justification
+
+- **CVEDERIVED-20256514-A** stays T4 despite the handler being shell
+  injection. At the code level it's T3; at the guardrail level the
+  interesting question is "should the agent have trusted this URL at
+  all" — that's T4. Prefer the question a guardrail can actually answer.
+- **CVEDERIVED-202625536-A** stays T9. The attack_vector is a
+  descriptive-comment handler (session-routing flaw, no concrete payload).
+  This is the right shape for this CVE class — there is no "one input"
+  that triggers the cross-client leak; it's emergent across requests.
+  Noted so future reviewers don't strip it for being "too abstract."
+
 ## General labeling heuristics (applied across the catalog)
 
 1. **Prefer the label a guardrail can act on.** If both T3 and T6 fit,
