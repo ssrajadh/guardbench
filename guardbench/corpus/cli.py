@@ -120,38 +120,60 @@ def cmd_review(
     if not drafts:
         print("no draft entries", file=stdout)
         return 0
-    print(f"{len(drafts)} draft entr{'y' if len(drafts) == 1 else 'ies'}", file=stdout)
-    for e in drafts:
-        print("", file=stdout)
-        print(f"  id: {e.id}", file=stdout)
-        print(f"  cosai: {e.cosai_category}   mitre: {e.mitre_technique_id}", file=stdout)
-        print(f"  source: {e.source}   obfuscation: {e.obfuscation_level}", file=stdout)
-        print(f"  expected_verdict: {e.expected_verdict}", file=stdout)
+    total = len(drafts)
+    print(f"{total} draft entr{'y' if total == 1 else 'ies'} to review", file=stdout)
+    tally = {"approved": 0, "reviewed": 0, "skipped": 0}
+    sep = "─" * 60
+    quit_early = False
+    for i, e in enumerate(drafts, 1):
+        print(f"\n{sep}\n[{i}/{total}] {e.id}", file=stdout)
+        print(f"  cosai={e.cosai_category}  mitre={e.mitre_technique_id}  "
+              f"verdict={e.expected_verdict}", file=stdout)
+        print(f"  source={e.source}  obfuscation={e.obfuscation_level}", file=stdout)
+        if e.cve_reference:
+            print(f"  cve: {e.cve_reference}", file=stdout)
+        if e.parent_id:
+            print(f"  parent: {e.parent_id}  (variant)", file=stdout)
         print("  attack_vector:", file=stdout)
-        for line in e.attack_vector.splitlines() or [""]:
-            print(f"    {line}", file=stdout)
+        for line in (e.attack_vector.splitlines() or [""]):
+            print(f"    │ {line}", file=stdout)
         if e.labeling_notes:
             print(f"  notes: {e.labeling_notes}", file=stdout)
-        print("  [a]pprove / [r]eject / [s]kip / [q]uit ?", file=stdout, end=" ")
+        print("  [a]pprove  [r]eject  [s]kip  [q]uit", file=stdout)
+        print("  > ", file=stdout, end="")
         stdout.flush()
         choice = (stdin.readline() or "").strip().lower()
         if choice == "q":
+            print("  quit — remaining drafts left untouched", file=stdout)
+            quit_early = True
             break
-        if choice == "s" or choice == "":
+        if choice in ("", "s"):
+            tally["skipped"] += 1
+            print("  → skipped", file=stdout)
             continue
         if choice not in {"a", "r"}:
-            print(f"  (unknown choice {choice!r}, skipping)", file=stdout)
+            tally["skipped"] += 1
+            print(f"  (unknown choice {choice!r}) → skipped", file=stdout)
             continue
-        print("  note (blank = keep existing):", file=stdout, end=" ")
+        print("  note (blank = keep existing):", file=stdout)
+        print("  > ", file=stdout, end="")
         stdout.flush()
         note = (stdin.readline() or "").rstrip("\n")
         if note:
             e.labeling_notes = note
-        # "reviewed" means we looked at it and kept it as draft-ish; "approved"
-        # means it's ready for the harness.
+        # "reviewed" = seen but not endorsed; "approved" = ready for harness.
         e.review_status = "approved" if choice == "a" else "reviewed"
-        print(f"  -> {e.review_status}", file=stdout)
+        tally[e.review_status] += 1
+        print(f"  → {e.review_status}", file=stdout)
     _write(path, entries)
+    remaining = total - sum(tally.values()) if quit_early else 0
+    print(f"\n{sep}", file=stdout)
+    print(
+        f"done: {tally['approved']} approved, {tally['reviewed']} rejected, "
+        f"{tally['skipped']} skipped"
+        + (f", {remaining} left" if remaining else ""),
+        file=stdout,
+    )
     return 0
 
 
