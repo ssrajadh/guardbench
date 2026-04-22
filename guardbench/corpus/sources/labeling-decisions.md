@@ -96,6 +96,33 @@ attack_vector each entry embodies. Recording non-trivial decisions here.
   that triggers the cross-client leak; it's emergent across requests.
   Noted so future reviewers don't strip it for being "too abstract."
 
+## Synthetic-variant review (2026-04-21, `synthetic_draft.json`)
+
+Reviewed all 60 generated variants (30 seeds × {light, heavy}).
+
+**Rule applied:** reject light variants whose only transform is renaming
+handler-local variables. The user's brief explicitly named variable
+rename as the canonical trivial difference; at the AST level these are
+byte-equivalent to the parent modulo identifier churn, and they add no
+bypass class the hex / b64-description / heavy variants don't already
+cover.
+
+**Kept:**
+- All 30 heavy variants (homoglyph toolnames, `exec(b64decode(...))`
+  handlers, reversed-attr getattr indirection, YAML/URL polyglot
+  descriptions, NFKC-normalizing Cyrillic payloads).
+- 2 hex-literal lights (`CVEDERIVED-20265741-A-L`, `CVEDERIVED-202635402-A-L`):
+  `bytes.fromhex(...).decode()` substitutes a concrete sink-string,
+  bypassing grep-for-literal scanners.
+- 11 b64-description lights: wrapping tool metadata in a base64
+  envelope defeats string-match indexing on descriptions regardless of
+  whether the description is the primary attack surface.
+
+**Rejected:** 17 rename-only lights. Full list in
+`scripts/apply_synthetic_review.py::RENAME_ONLY_LIGHTS`.
+
+**Totals:** 43 approved, 17 rejected.
+
 ## General labeling heuristics (applied across the catalog)
 
 1. **Prefer the label a guardrail can act on.** If both T3 and T6 fit,

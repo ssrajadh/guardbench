@@ -1,0 +1,55 @@
+# 30 diverse seeds spanning 9 CoSAI categories and ~20 attack mechanisms.
+# Used as parents for LLM-variant generation (Phase 3 Step 8).
+# Mix: 19 CVE-derived (real-world anchors) + 11 taxonomy-derived (CVE gaps).
+
+# --- T3 shell / code injection (6) ---------------------------------
+CVEDERIVED-202568144-A          # git_diff — argument injection into git CLI
+CVEDERIVED-20260755-A           # ask_gemini — execAsync shell concat (Node)
+CVEDERIVED-20263484-A           # nmap_scan — child_process.exec shell concat
+CVEDERIVED-202639884-A          # k8s port_forward — kubectl string concat
+CVEDERIVED-20265741-A           # docker_run — docker CLI shell concat
+CVEDERIVED-202630625-A          # upsonic create_task — python exec() on spec
+
+# --- T3 path traversal (3) -----------------------------------------
+CVEDERIVED-202568143-A          # git_init — unvalidated path
+CVEDERIVED-202627825-A          # confluence download_attachment — ~/.ssh/authorized_keys
+CVEDERIVED-202640576-A          # excel read_excel — arbitrary file read over SSE
+
+# --- T3 resource / prompt handler logic (2) ------------------------
+TAX-ZHAO-A8-FS                  # resource URI percent-decode → traversal
+TAX-ZHAO-A11-DB                 # prompt handler jinja2 SSTI
+
+# --- T4 supply chain (3) -------------------------------------------
+CVEDERIVED-202554136-A          # Cursor MCPoison — cached trust + swap
+CVEDERIVED-202621852-A          # Claude Code enableAllProjectMcpServers
+TAX-MCPSB-PNS-SERVER-DB         # mcp-postgress typosquat
+
+# --- T5 SSRF / egress (3) ------------------------------------------
+CVEDERIVED-202627826-A          # mcp-atlassian header-controlled base URL
+CVEDERIVED-202635402-A          # Neo4j CALL apoc.load.json bypass
+CVEDERIVED-202626118-A          # Azure MCP fetch_url → IMDS
+
+# --- T6 insecure defaults / design (3) -----------------------------
+CVEDERIVED-202623744-A          # MCPJam install_mcp_server — 0.0.0.0 no authN
+CVEDERIVED-202633032-A          # nginx-ui rewrite_nginx_config — missing middleware
+TAX-MCPSB-SCHEMA-FS             # inputSchema missing 'required' → crash / default path
+
+# --- T7 denial of service (1) --------------------------------------
+CVEDERIVED-202639313-A          # mcp-framework unbounded readRequestBody → OOM
+
+# --- T9 data exfiltration (3) --------------------------------------
+CVEDERIVED-202625536-A          # MCP TypeScript SDK cross-client response leak
+CVEDERIVED-202631951-A          # LibreChat OAuth token via custom headers
+TAX-ZHAO-A6-DB                  # tool output row injection steers next LLM turn
+
+# --- T1 direct prompt injection (2) --------------------------------
+TAX-MCPSB-PROMPTINJ-FS          # user_note concatenated into system prompt
+TAX-MCPSB-PROMPTINJ-NOTIFY      # LLM-composed message with embedded directive
+
+# --- T2 indirect injection / tool poisoning (3) --------------------
+TAX-MCPSB-INDPROMPTINJ-FS       # file content returned verbatim contains directives
+TAX-MCPSB-TOOLSHADOW-DB         # description chains LLM into attacker tool
+TAX-MCPSB-TOOLPOISON-NOTIFY     # 'policy-compliant' lie biases tool selection
+
+# --- T10 auth / transport (1) --------------------------------------
+TAX-MCPSB-MITM-FS               # plaintext HTTP transport — MITM rewrites bytes
