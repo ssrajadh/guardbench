@@ -123,6 +123,39 @@ cover.
 
 **Totals:** 43 approved, 17 rejected.
 
+## Benign-draft hard review (2026-04-21, `benign_draft.json`)
+
+Reviewed all 39 generated benigns against the test: *would I ship this
+in a real codebase?* Four failed and were rejected — each is a genuine
+bug, not a false-positive look-alike.
+
+**Rejected (4):**
+- `BEN-META-K8S-SA-TOKEN` — returns the raw SA bearer token to the MCP
+  caller (a model). Credential exfiltration, not a benign metadata fetch.
+- `BEN-EVAL-REPORT-TEMPLATE` — claims "sandboxed eval" but uses
+  `jinja2.Environment`, which is not a sandbox. `autoescape` handles
+  HTML escaping only; SSTI escapes reach builtins.
+- `BEN-HTMLCOMMENT-MD-SOURCE` — unvalidated `doc_id` interpolated into
+  an HTML comment allows `-->` breakout → XSS.
+- `BEN-REGEX-WORKSPACE-GREP` — `subprocess.run(['rg', '--fixed-strings',
+  pattern, ...])` interprets a `-`-leading pattern as an rg flag. Needs
+  `--` or `-e pattern` to ship.
+
+**Relabeled (6):** Moved entries to the CoSAI family whose scanner
+would actually fire — widens surviving coverage from 4 to 6 CoSAI
+categories.
+
+- `BEN-ENV-DB-CONNECT`, `BEN-ENV-SLACK-POST`, `BEN-ENV-S3-UPLOAD`: T9 → T12
+  (env-var credential reads are secret-management scanner targets).
+- `BEN-DYNIMPORT-EXPORTER`, `BEN-ARCHIVE-RELEASE-ARTIFACT`: T3 → T4
+  (entry-point plugin loading and signed-release extraction are
+  supply-chain surfaces).
+- `BEN-REGEX-EVENT-FILTER`: T3 → T7 (engine-timeout regex addresses
+  ReDoS / application DoS, not injection).
+
+**Totals:** 35 approved / 4 rejected. Approved CoSAI spread:
+T3:19, T2:8, T12:3, T4:2, T5:2, T7:1 (6 categories).
+
 ## General labeling heuristics (applied across the catalog)
 
 1. **Prefer the label a guardrail can act on.** If both T3 and T6 fit,
