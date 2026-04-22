@@ -88,8 +88,24 @@ def cmd_list(args: argparse.Namespace, *, stdout: IO[str]) -> int:
 
 
 def cmd_stats(args: argparse.Namespace, *, stdout: IO[str]) -> int:
+    from collections import Counter
+    from guardbench.corpus.validate import _STRICT_TARGETS
     entries = _read(Path(args.corpus))
-    print(distribution_report(entries), file=stdout)
+    targets = _STRICT_TARGETS if getattr(args, "verbose", False) else None
+    print(distribution_report(entries, targets), file=stdout)
+    if getattr(args, "verbose", False):
+        print("", file=stdout)
+        print("Attack type:", file=stdout)
+        for at, n in Counter(e.attack_type for e in entries).most_common():
+            print(f"  {at:<34} {n:>4}", file=stdout)
+        print("", file=stdout)
+        print("Expected verdict:", file=stdout)
+        for v, n in Counter(e.expected_verdict for e in entries).most_common():
+            print(f"  {v:<10} {n:>4}", file=stdout)
+        print("", file=stdout)
+        print("Created by:", file=stdout)
+        for cb, n in Counter(e.created_by for e in entries).most_common():
+            print(f"  {cb:<14} {n:>4}", file=stdout)
     return 0
 
 
@@ -98,12 +114,16 @@ def cmd_export(args: argparse.Namespace, *, stdout: IO[str]) -> int:
     if args.approved_only:
         entries = [e for e in entries if e.review_status == "approved"]
     out = [e.to_test_case().model_dump(mode="json") for e in entries]
-    Path(args.output).write_text(json.dumps(out, indent=2) + "\n")
-    print(
-        f"exported {len(out)} entries -> {args.output}"
-        + (" (approved only)" if args.approved_only else ""),
-        file=stdout,
-    )
+    payload = json.dumps(out, indent=2) + "\n"
+    if args.output:
+        Path(args.output).write_text(payload)
+        print(
+            f"exported {len(out)} entries -> {args.output}"
+            + (" (approved only)" if args.approved_only else ""),
+            file=sys.stderr,
+        )
+    else:
+        stdout.write(payload)
     return 0
 
 
@@ -183,7 +203,7 @@ def cmd_review(
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="guardbench-corpus")
-    p.add_argument("--corpus", required=True, help="path to corpus JSON file")
+    p.add_argument("--corpus", default=None, help="path to corpus JSON file")
     sub = p.add_subparsers(dest="command", required=True)
 
     a = sub.add_parser("add", help="append a new entry")
@@ -206,6 +226,9 @@ def build_parser() -> argparse.ArgumentParser:
     ls.set_defaults(func=lambda ns: cmd_list(ns, stdout=sys.stdout))
 
     st = sub.add_parser("stats", help="distribution report")
+    st.add_argument("path", nargs="?", default=None, help="corpus JSON (overrides --corpus)")
+    st.add_argument("--verbose", "-v", action="store_true",
+                    help="include attack-type, verdict, created-by breakdowns and strict targets")
     st.set_defaults(func=lambda ns: cmd_stats(ns, stdout=sys.stdout))
 
     rv = sub.add_parser("review", help="walk drafts interactively")
@@ -214,7 +237,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     ex = sub.add_parser("export-for-harness", help="strip provenance -> TestCase JSON")
-    ex.add_argument("--output", required=True)
+    ex.add_argument("path", nargs="?", default=None, help="corpus JSON (overrides --corpus)")
+    ex.add_argument("--output", default=None,
+                    help="write to file (default: stdout)")
     ex.add_argument("--approved-only", action="store_true")
     ex.set_defaults(func=lambda ns: cmd_export(ns, stdout=sys.stdout))
 
@@ -223,6 +248,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    # positional 'path' on a subcommand overrides --corpus
+    pos = getattr(args, "path", None)
+    if pos:
+        args.corpus = pos
+    if not args.corpus:
+        print("error: provide corpus path via --corpus or as positional arg",
+              file=sys.stderr)
+        return 2
     return args.func(args)
 
 

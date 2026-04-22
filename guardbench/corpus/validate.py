@@ -18,8 +18,16 @@ from guardbench.corpus.schema import CorpusEntry
 
 _COSAI = [f"T{i}" for i in range(1, 13)]
 
-# Target distribution per CoSAI category (tune later).
+# Default (permissive) target used by non-strict stats output.
 _DEFAULT_TARGETS: dict[str, int] = {t: 10 for t in _COSAI}
+
+# Strict targets — tuned per CoSAI prevalence in the threat model.
+# --strict fails if any category is below its target.
+_STRICT_TARGETS: dict[str, int] = {
+    "T1": 10, "T2": 10, "T3": 25, "T4": 25,
+    "T5": 20, "T6": 10, "T7":  8, "T8":  8,
+    "T9": 20, "T10": 10, "T11": 12, "T12": 8,
+}
 
 
 def load_corpus(path: Path | str) -> list[CorpusEntry]:
@@ -101,18 +109,33 @@ def distribution_report(
 
 
 def main(argv: list[str] | None = None) -> int:
-    argv = argv if argv is not None else sys.argv[1:]
-    if len(argv) != 1:
-        print("usage: python -m guardbench.corpus.validate <corpus.json>")
-        return 2
-    entries = load_corpus(argv[0])
+    import argparse
+    p = argparse.ArgumentParser(prog="guardbench.corpus.validate")
+    p.add_argument("path", help="corpus JSON file")
+    p.add_argument("--strict", action="store_true",
+                   help="fail when any CoSAI category is below the strict target")
+    ns = p.parse_args(argv if argv is not None else sys.argv[1:])
+
+    entries = load_corpus(ns.path)
     errors = validate_entries(entries)
     if errors:
         print("VALIDATION ERRORS:")
         for e in errors:
             print(f"  - {e}")
         return 1
-    print(distribution_report(entries))
+
+    targets = _STRICT_TARGETS if ns.strict else _DEFAULT_TARGETS
+    print(distribution_report(entries, targets))
+    if ns.strict:
+        from collections import Counter
+        counts = Counter(e.cosai_category for e in entries)
+        gaps = {c: targets[c] - counts.get(c, 0) for c in _COSAI
+                if counts.get(c, 0) < targets[c]}
+        if gaps:
+            print("\nSTRICT FAIL — categories below target:")
+            for c, g in gaps.items():
+                print(f"  {c}: need {g} more (have {counts.get(c, 0)}, target {targets[c]})")
+            return 1
     return 0
 
 

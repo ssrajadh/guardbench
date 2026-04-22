@@ -132,7 +132,7 @@
     "cosai_category": "T9",
     "mitre_technique_id": "T1530",
     "attack_vector": "{\n  \"name\": \"streaming_query\",\n  \"description\": \"Stream results of a long query over HTTP\",\n  \"inputSchema\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"query\": {\n        \"type\": \"string\"\n      }\n    },\n    \"required\": [\n      \"query\"\n    ]\n  },\n  \"handler\": \"# Single StreamableHTTPServerTransport shared across clients \\u2014\\n# server.write() routes based on most-recent response_id, leaking\\n# one client's output to another.\"\n}",
-    "attack_type": "other",
+    "attack_type": "session_routing_leak",
     "expected_verdict": "block",
     "source": "cve-derived",
     "obfuscation_level": "none",
@@ -141,7 +141,7 @@
     "created_by": "claude_code",
     "parent_id": null,
     "review_status": "approved",
-    "labeling_notes": "CoSAI T9 (data exfil impact); root_cause=other (session-routing flaw, not injection)"
+    "labeling_notes": "attack_type sharpened to 'session_routing_leak': Initial 'other' label was a stopgap. Mechanism: shared transport routes responses by most-recent response_id, leaking one session's output to another. | prior: CoSAI T9 (data exfil impact); root_cause=other (session-routing flaw, not injection)"
   },
   {
     "id": "CVEDERIVED-202627825-A",
@@ -260,7 +260,7 @@
     "cosai_category": "T9",
     "mitre_technique_id": "T1552.001",
     "attack_vector": "{\n  \"name\": \"register_mcp_server\",\n  \"description\": \"Register a user-defined MCP server with custom HTTP headers\",\n  \"inputSchema\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"url\": {\n        \"type\": \"string\"\n      },\n      \"headers\": {\n        \"type\": \"object\"\n      }\n    }\n  },\n  \"handler\": \"# headers merged verbatim into outbound requests, including those\\n# carrying the victim's OAuth bearer token.\"\n}",
-    "attack_type": "other",
+    "attack_type": "credential_egress",
     "expected_verdict": "block",
     "source": "cve-derived",
     "obfuscation_level": "none",
@@ -269,7 +269,7 @@
     "created_by": "claude_code",
     "parent_id": null,
     "review_status": "approved",
-    "labeling_notes": null
+    "labeling_notes": "attack_type sharpened to 'credential_egress': Initial 'other' label was a stopgap. Mechanism: caller-controlled headers merge into outbound requests, sending the OAuth bearer token to an attacker-chosen URL. | prior: "
   },
   {
     "id": "CVEDERIVED-202633032-A",
@@ -372,7 +372,7 @@
     "cosai_category": "T7",
     "mitre_technique_id": "T1499.003",
     "attack_vector": "{\n  \"name\": \"submit_batch\",\n  \"description\": \"Submit a JSON batch of records for processing\",\n  \"inputSchema\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"payload\": {\n        \"type\": \"string\"\n      }\n    },\n    \"required\": [\n      \"payload\"\n    ]\n  },\n  \"handler\": \"chunks = []\\nasync for chunk in request.stream():\\n    chunks.append(chunk)  # no total-size cap; OOM on ~1GB body\\nbody = b''.join(chunks)\"\n}",
-    "attack_type": "other",
+    "attack_type": "dos_unbounded_buffer",
     "expected_verdict": "block",
     "source": "cve-derived",
     "obfuscation_level": "none",
@@ -381,7 +381,7 @@
     "created_by": "claude_code",
     "parent_id": null,
     "review_status": "approved",
-    "labeling_notes": null
+    "labeling_notes": "attack_type sharpened to 'dos_unbounded_buffer': Initial label 'other' was a stopgap. Mechanism is clearly unbounded readRequestBody buffer growth -> OOM. | prior: "
   },
   {
     "id": "CVEDERIVED-202639884-A",
