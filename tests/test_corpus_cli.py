@@ -221,7 +221,8 @@ class TestExport:
         assert "created_by" not in payload[0]
         assert "review_status" not in payload[0]
         assert payload[0]["id"] == "E1"
-        assert "exported 1 entries" in capsys.readouterr().out
+        # success message goes to stderr so piping --output=- keeps stdout clean
+        assert "exported 1 entries" in capsys.readouterr().err
 
     def test_export_approved_only(self, corpus_path, tmp_path, capsys):
         cli.main(_add_args(corpus_path, id="E1", review_status="draft"))

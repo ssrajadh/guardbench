@@ -31,3 +31,7 @@ class Result(BaseModel):
     latency_ms: int
     raw_output: dict
     timestamp: datetime
+    # Populated when the adapter could not produce a real block/allow verdict
+    # (subprocess crash, timeout, missing credential, malformed output).
+    # Error rows must be excluded from precision/recall math; track separately.
+    error: Optional[str] = None

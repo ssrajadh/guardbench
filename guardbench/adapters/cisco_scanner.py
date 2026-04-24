@@ -94,6 +94,7 @@ class CiscoScannerAdapter(ToolAdapter):
                 latency_ms=latency_ms,
                 raw_output={"error": "timeout"},
                 timestamp=datetime.now(timezone.utc),
+                error="timeout",
             )
         latency_ms = int((time.monotonic() - t0) * 1000)
 
@@ -111,6 +112,7 @@ class CiscoScannerAdapter(ToolAdapter):
                     "exit_code": proc.returncode,
                 },
                 timestamp=datetime.now(timezone.utc),
+                error=f"no_output_exit_{proc.returncode}",
             )
 
         try:
@@ -125,6 +127,7 @@ class CiscoScannerAdapter(ToolAdapter):
                 latency_ms=latency_ms,
                 raw_output={"stdout_head": stdout[:500]},
                 timestamp=datetime.now(timezone.utc),
+                error="malformed_json",
             )
 
         return self._parse(test_case, raw, latency_ms)
