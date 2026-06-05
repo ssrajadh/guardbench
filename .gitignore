@@ -3,3 +3,27 @@ __pycache__
 .pytest_cache
 results/
 .env
+
+# run logs and safety backups (transient noise)
+*.log
+*.bak-*
+
+# editor / office lock & swap files
+.~lock.*#
+*.swp
+.DS_Store
+
+# live / regenerable experiment outputs — these are rewritten every run.
+# Commit FINAL (real-experiment) results deliberately with `git add -f`.
+audit/mutation-survival.csv
+audit/mutation-survival-rollup.csv
+audit/mutation-survival.md
+/tmp/
+notes/
+
+# AI-generated docs, analysis & worksheets — not needed to reproduce the experiment
+# (includes PAPER.md and all of audit/. Force-add deliberately if ever wanted.)
+*.md
+!README.md
+audit/
+guardbench/corpus/working/

@@ -20,6 +20,9 @@ class TestCase(BaseModel):
     source: Literal["cve-derived", "taxonomy-derived", "synthetic"]
     obfuscation_level: Literal["none", "light", "heavy"]
     cve_reference: Optional[str] = None
+    # Ground-truth target for what a detector should flag; kept separate from
+    # CorpusEntry.labeling_notes (human commentary). Optional during rollout.
+    expected_detection_signal: Optional[str] = None
 
 
 class Result(BaseModel):
@@ -35,3 +38,4 @@ class Result(BaseModel):
     # (subprocess crash, timeout, missing credential, malformed output).
     # Error rows must be excluded from precision/recall math; track separately.
     error: Optional[str] = None
+

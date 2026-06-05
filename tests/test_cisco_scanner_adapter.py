@@ -123,7 +123,7 @@ class TestMaliciousPayloads:
 
         assert isinstance(result, Result)
         assert result.test_case_id == payload["id"]
-        assert result.tool_name == "cisco-mcp-scanner"
+        assert result.tool_name == "cisco-static"
         assert result.blocked is True, (
             f"Expected blocked=True for {payload['id']}, "
             f"got explanation: {result.explanation}"

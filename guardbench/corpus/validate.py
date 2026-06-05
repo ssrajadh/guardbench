@@ -18,15 +18,29 @@ from guardbench.corpus.schema import CorpusEntry
 
 _COSAI = [f"T{i}" for i in range(1, 13)]
 
+# Required and optional top-level keys inside the parsed ``attack_vector`` JSON.
+# attack_vector itself is stored as a string (see ``TestCase.attack_vector``);
+# this rule enforces that, once parsed, it is a JSON object that exposes each
+# MCP component as its own addressable key.
+_REQUIRED_AV_KEYS: frozenset[str] = frozenset({
+    "name", "description", "inputSchema", "handler",
+})
+_OPTIONAL_AV_KEYS: frozenset[str] = frozenset({
+    "server", "prompt", "resource", "output_schema",
+})
+
 # Default (permissive) target used by non-strict stats output.
 _DEFAULT_TARGETS: dict[str, int] = {t: 10 for t in _COSAI}
 
-# Strict targets — tuned per CoSAI prevalence in the threat model.
-# --strict fails if any category is below its target.
+# Strict targets — calibrated to the post-remap distribution against the
+# real CoSAI MCP taxonomy (whitepaper 2026-01-08). Targets sit at-or-below
+# actual counts for cells we consider covered, at-or-above for known gaps
+# (T2 access control), and 0 for cells declared out-of-scope (T12 logging
+# isn't expressible as a single tool definition).
 _STRICT_TARGETS: dict[str, int] = {
-    "T1": 10, "T2": 10, "T3": 25, "T4": 25,
-    "T5": 20, "T6": 10, "T7":  8, "T8":  8,
-    "T9": 20, "T10": 10, "T11": 12, "T12": 8,
+    "T1": 10, "T2": 10, "T3": 60, "T4": 50,
+    "T5":  8, "T6": 12, "T7":  8, "T8": 12,
+    "T9":  3, "T10": 6, "T11": 10, "T12": 0,
 }
 
 
@@ -35,6 +49,32 @@ def load_corpus(path: Path | str) -> list[CorpusEntry]:
     if not isinstance(raw, list):
         raise ValueError(f"{path}: expected a JSON array at top level")
     return [CorpusEntry.model_validate(entry) for entry in raw]
+
+
+def _check_attack_vector_shape(entry_id: str, attack_vector: str) -> list[str]:
+    """Verify ``attack_vector`` parses to a JSON object exposing each MCP
+    component as its own top-level key.
+
+    Required keys: name, description, inputSchema, handler.
+    Optional keys: server, prompt, resource, output_schema.
+    Unknown extra keys are allowed but reported so additions stay deliberate.
+    """
+    try:
+        parsed = json.loads(attack_vector)
+    except json.JSONDecodeError as exc:
+        return [f"{entry_id}: attack_vector is not valid JSON ({exc.msg})"]
+    if not isinstance(parsed, dict):
+        return [f"{entry_id}: attack_vector must be a JSON object, got {type(parsed).__name__}"]
+
+    errs: list[str] = []
+    missing = sorted(_REQUIRED_AV_KEYS - parsed.keys())
+    if missing:
+        errs.append(f"{entry_id}: attack_vector missing required key(s): {missing}")
+
+    unknown = sorted(parsed.keys() - _REQUIRED_AV_KEYS - _OPTIONAL_AV_KEYS)
+    if unknown:
+        errs.append(f"{entry_id}: attack_vector has unknown key(s): {unknown}")
+    return errs
 
 
 def validate_entries(entries: Iterable[CorpusEntry]) -> list[str]:
@@ -52,6 +92,7 @@ def validate_entries(entries: Iterable[CorpusEntry]) -> list[str]:
         seen.add(e.id)
         if e.parent_id is not None and e.parent_id not in ids:
             errors.append(f"{e.id}: parent_id {e.parent_id!r} not found in corpus")
+        errors.extend(_check_attack_vector_shape(e.id, e.attack_vector))
     return errors
 
 

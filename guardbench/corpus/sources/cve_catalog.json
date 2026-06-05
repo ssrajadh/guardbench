@@ -54,7 +54,7 @@
     "affected_component": "MCPJam Inspector (<= 1.4.2)",
     "root_cause": "auth_bypass",
     "payload_summary": "MCPJam Inspector listens on 0.0.0.0 by default with no authentication on a critical endpoint. A single crafted HTTP request installs an attacker-controlled MCP server and executes arbitrary code on the host.",
-    "cosai_suggested_category": "T6",
+    "cosai_suggested_category": "T1",
     "mitre_suggested_technique": "T1190",
     "source_url": "https://vulnerablemcp.info/vuln/cve-2026-23744-mcpjam-inspector-rce.html",
     "notes": "CVSS 9.8. Final call: root_cause=auth_bypass, CoSAI=T6 (insecure defaults). Missing-auth-on-privileged-endpoint is the root enabler; the RCE is the impact, not the cause."
@@ -64,7 +64,7 @@
     "affected_component": "MCP TypeScript SDK (StreamableHTTPServerTransport, v1.10.0-1.25.3)",
     "root_cause": "other",
     "payload_summary": "When a single McpServer reuses a StreamableHTTPServerTransport across multiple clients, responses can be misrouted so one client receives data intended for another. This leaks request/response bodies across tenant boundaries.",
-    "cosai_suggested_category": "T9",
+    "cosai_suggested_category": "T7",
     "mitre_suggested_technique": "T1530",
     "source_url": "https://vulnerablemcp.info/vuln/cve-2026-25536-sdk-cross-client-data-leak.html",
     "notes": "CVSS 7.1. Final call: root_cause=other (session/response-routing flaw doesn't fit the 5 named buckets), CoSAI=T9. Cross-tenant response leakage is unambiguously a data-exfiltration outcome; keeping T9."
@@ -84,7 +84,7 @@
     "affected_component": "mcp-atlassian (Atlassian base URL header handling, < 0.17.0)",
     "root_cause": "ssrf",
     "payload_summary": "The server honors caller-controlled Atlassian base URL headers without SSRF validation. An attacker can force the server to make outbound requests to arbitrary (including localhost and cloud metadata) endpoints, then have the response written via the attachment downloader.",
-    "cosai_suggested_category": "T5",
+    "cosai_suggested_category": "T8",
     "mitre_suggested_technique": "T1090",
     "source_url": "https://arcticwolf.com/resources/blog-uk/cve-2026-27825-critical-unauthenticated-rce-and-ssrf-in-mcp-atlassian/",
     "notes": "Disclosed February 24, 2026 alongside CVE-2026-27825."
@@ -114,7 +114,7 @@
     "affected_component": "LibreChat (0.8.2-rc1 .. 0.8.3-rc1) MCP server config",
     "root_cause": "other",
     "payload_summary": "User-created MCP server configurations allow arbitrary HTTP headers. An attacker crafts a server entry whose outbound requests include the victim's OAuth token in attacker-controlled headers, exfiltrating credentials.",
-    "cosai_suggested_category": "T9",
+    "cosai_suggested_category": "T5",
     "mitre_suggested_technique": "T1552.001",
     "source_url": "https://www.cvedetails.com/cve/CVE-2026-31951/",
     "notes": "Classified as 'other' root_cause (credential exfiltration via header injection); CoSAI T9 = output data exfiltration."
@@ -124,7 +124,7 @@
     "affected_component": "nginx-ui MCP integration (MCPwn)",
     "root_cause": "auth_bypass",
     "payload_summary": "A missing authentication middleware call exposes all 12 nginx-ui MCP tools to any unauthenticated network caller. Two HTTP requests let the attacker rewrite Nginx configuration and trigger a reload, yielding full server takeover.",
-    "cosai_suggested_category": "T6",
+    "cosai_suggested_category": "T1",
     "mitre_suggested_technique": "T1190",
     "source_url": "https://www.esentire.com/security-advisories/nginx-ui-authentication-bypass-vulnerability-cve-2026-33032-exploited",
     "notes": "CVSS 9.8, actively exploited in the wild as of April 2026. CVE reserved in the Jan-Feb 2026 wave per the '30 CVEs' writeup."
@@ -144,7 +144,7 @@
     "affected_component": "mcp-neo4j-cypher (< 0.6.0)",
     "root_cause": "ssrf",
     "payload_summary": "The read_only mode can be bypassed using Neo4j CALL procedures such as apoc.load.json, allowing an attacker to issue write Cypher and trigger SSRF via apoc URL-loading procedures from the MCP server's network position.",
-    "cosai_suggested_category": "T5",
+    "cosai_suggested_category": "T8",
     "mitre_suggested_technique": "T1190",
     "source_url": "https://advisories.gitlab.com/pypi/mcp-neo4j-cypher/CVE-2026-35402/",
     "notes": "Final call: root_cause=ssrf, CoSAI=T5. Data-modification is a side effect of the read_only bypass; the benchmark-relevant outcome is the SSRF (URL fetch from server's network position), which aligns with T5 guardrails on outbound traffic."
@@ -154,7 +154,7 @@
     "affected_component": "mcp-framework (<= 0.2.21)",
     "root_cause": "other",
     "payload_summary": "readRequestBody() concatenates request body chunks without a size cap. An unauthenticated remote attacker sends an unbounded request body to exhaust memory and crash the MCP server process (DoS).",
-    "cosai_suggested_category": "T7",
+    "cosai_suggested_category": "T10",
     "mitre_suggested_technique": "T1499.003",
     "source_url": "https://cve.threatint.eu/CVE/CVE-2026-39313",
     "notes": "Denial-of-service; fixed in 0.2.22. T7 = availability/DoS under CoSAI."
@@ -214,7 +214,7 @@
     "affected_component": "Microsoft Azure MCP Server Tools",
     "root_cause": "ssrf",
     "payload_summary": "An MCP tool accepts a caller-supplied URL and performs an outbound request without validation, letting an attacker reach the Azure IMDS and exfiltrate the managed-identity token from the server's environment.",
-    "cosai_suggested_category": "T5",
+    "cosai_suggested_category": "T8",
     "mitre_suggested_technique": "T1552.005",
     "source_url": "https://www.pointguardai.com/ai-security-incidents/microsoft-mcp-server-vulnerability-opens-door-to-ai-tool-hijacking-cve-2026-26118",
     "notes": "Classic SSRF-to-cloud-credential pattern applied to MCP."
@@ -224,7 +224,7 @@
     "affected_component": "Claude Code (enableAllProjectMcpServers config flag)",
     "root_cause": "auth_bypass",
     "payload_summary": "When enableAllProjectMcpServers is true, Claude Code auto-approves every MCP server declared in the project's .mcp.json without user confirmation. A committer can add a malicious MCP server that silently exfiltrates source code when the project is opened.",
-    "cosai_suggested_category": "T4",
+    "cosai_suggested_category": "T1",
     "mitre_suggested_technique": "T1195.002",
     "source_url": "https://dev.to/sattyamjjain/cve-2026-21852-how-enableallprojectmcpservers-leaks-your-entire-source-code-5ddc",
     "notes": "Final call: root_cause=auth_bypass, CoSAI=T4. The auto-approve flag is the auth-bypass mechanism; exploitation is via a committed .mcp.json (supply-chain), so T4 captures the threat model more precisely than T6."
@@ -234,7 +234,7 @@
     "affected_component": "MCP Inspector",
     "root_cause": "auth_bypass",
     "payload_summary": "MCP Inspector exposes an unauthenticated local endpoint that can be triggered by any web page the victim visits (DNS rebinding / drive-by), yielding arbitrary code execution on the developer's machine.",
-    "cosai_suggested_category": "T6",
+    "cosai_suggested_category": "T1",
     "mitre_suggested_technique": "T1189",
     "source_url": "https://www.heyuan110.com/posts/ai/2026-03-10-mcp-security-2026/",
     "notes": "Pre-2026 (2025) but heavily referenced in the Jan-Feb 2026 writeup as the template flaw that MCPJam/nginx-ui recapitulated."
@@ -244,7 +244,7 @@
     "affected_component": "mcp-remote npm package",
     "root_cause": "shell_injection",
     "payload_summary": "A crafted remote MCP server URL registered with mcp-remote is interpolated into a local command, letting a malicious server operator execute arbitrary commands on any client that connects.",
-    "cosai_suggested_category": "T4",
+    "cosai_suggested_category": "T3",
     "mitre_suggested_technique": "T1059",
     "source_url": "https://www.heyuan110.com/posts/ai/2026-03-10-mcp-security-2026/",
     "notes": "Pre-2026 (2025) but actively exploited during Jan-Feb 2026; included as a supply-chain client-side analog to the server-side shell-injection class."

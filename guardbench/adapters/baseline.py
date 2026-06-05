@@ -22,3 +22,4 @@ class BaselineAdapter(ToolAdapter):
             raw_output={},
             timestamp=datetime.now(timezone.utc),
         )
+    
