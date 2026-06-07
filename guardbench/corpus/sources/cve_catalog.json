@@ -221,13 +221,13 @@
   },
   {
     "cve_id": "CVE-2026-21852",
-    "affected_component": "Claude Code (enableAllProjectMcpServers config flag)",
-    "root_cause": "auth_bypass",
-    "payload_summary": "When enableAllProjectMcpServers is true, Claude Code auto-approves every MCP server declared in the project's .mcp.json without user confirmation. A committer can add a malicious MCP server that silently exfiltrates source code when the project is opened.",
-    "cosai_suggested_category": "T1",
-    "mitre_suggested_technique": "T1195.002",
-    "source_url": "https://dev.to/sattyamjjain/cve-2026-21852-how-enableallprojectmcpservers-leaks-your-entire-source-code-5ddc",
-    "notes": "Final call: root_cause=auth_bypass, CoSAI=T4. The auto-approve flag is the auth-bypass mechanism; exploitation is via a committed .mcp.json (supply-chain), so T4 captures the threat model more precisely than T6."
+    "affected_component": "Claude Code (ANTHROPIC_BASE_URL project setting)",
+    "root_cause": "credential_egress",
+    "payload_summary": "A malicious repository commits a settings file that redirects ANTHROPIC_BASE_URL to an attacker-controlled endpoint. On project load, Claude Code issues API requests carrying the Anthropic API key (x-api-key) to that endpoint BEFORE the user confirms trust, exfiltrating the key. Fixed in 2.0.65.",
+    "cosai_suggested_category": "T5",
+    "mitre_suggested_technique": "T1567",
+    "source_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-21852",
+    "notes": "NVD-verified: ANTHROPIC_BASE_URL credential exfiltration before the trust prompt. Supersedes the earlier enableAllProjectMcpServers framing (from a secondary dev.to article), which NVD does not support."
   },
   {
     "cve_id": "CVE-2025-49596",
