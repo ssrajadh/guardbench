@@ -45,7 +45,9 @@ def _categorize(code: str) -> str | None:
     """
     if code in _THREAT_CATEGORIES:
         return _THREAT_CATEGORIES[code]
-    if code and code[0] in {"E", "W"} or code.startswith("TF"):
+    # Parenthesized so the `code` truthiness guard protects BOTH branches;
+    # without it a None/empty code reaches code.startswith and raises (audit r4).
+    if code and (code[0] in {"E", "W"} or code.startswith("TF")):
         return f"unmapped_{code}"
     return None
 

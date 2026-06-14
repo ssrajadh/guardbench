@@ -1,6 +1,6 @@
 """Cross-adapter integration smoke test.
 
-Runs a single hardcoded T3 test case through all four adapters and
+Runs a single hardcoded T3 test case through every available adapter and
 validates that each returns a well-formed Result.
 
 Marked ``@pytest.mark.integration`` so it is excluded from fast CI runs
@@ -16,16 +16,15 @@ from pydantic import ValidationError
 
 from guardbench.adapters.baseline import BaselineAdapter
 from guardbench.adapters.cisco_scanner import CiscoScannerAdapter, _find_mcp_scanner
-from guardbench.adapters.semgrep_mcp import SemgrepMCPAdapter, _find_semgrep
 from guardbench.adapters.snyk_agent_scan import SnykAgentScanAdapter, _find_uvx
 from guardbench.schemas import Result, TestCase
 
 # ------------------------------------------------------------------
 # Hardcoded T3 input-validation attack test case
 #
-# The attack_vector is valid Python source code (so Semgrep can parse
-# it) AND reads as a malicious tool description (so Snyk/Cisco flag
-# the exfiltration / shell=True patterns via their own analysis).
+# The attack_vector is valid Python source code AND reads as a malicious
+# tool description, so Snyk/Cisco flag the exfiltration / shell=True
+# patterns via their own analysis.
 # ------------------------------------------------------------------
 
 _TEST_CASE = TestCase(
@@ -59,14 +58,6 @@ def _snyk_available() -> bool:
 def _cisco_available() -> bool:
     try:
         _find_mcp_scanner()
-        return True
-    except FileNotFoundError:
-        return False
-
-
-def _semgrep_available() -> bool:
-    try:
-        _find_semgrep()
         return True
     except FileNotFoundError:
         return False
@@ -121,13 +112,6 @@ class TestCrossAdapterSmoke:
         result = adapter.evaluate(_TEST_CASE)
         self._validate_result(result, "cisco-mcp-scanner")
 
-    @pytest.mark.skipif(not _semgrep_available(), reason="semgrep not installed")
-    def test_semgrep(self):
-        adapter = SemgrepMCPAdapter()
-        adapter.setup()
-        result = adapter.evaluate(_TEST_CASE)
-        self._validate_result(result, "semgrep")
-
     # -- cleanup check -------------------------------------------
 
     def test_no_leftover_temp_dirs(self):
@@ -137,10 +121,6 @@ class TestCrossAdapterSmoke:
         adapters = [BaselineAdapter()]
         if _cisco_available():
             a = CiscoScannerAdapter()
-            a.setup()
-            adapters.append(a)
-        if _semgrep_available():
-            a = SemgrepMCPAdapter()
             a.setup()
             adapters.append(a)
         if _snyk_available():
@@ -162,10 +142,6 @@ class TestCrossAdapterSmoke:
         adapters = [BaselineAdapter()]
         if _cisco_available():
             a = CiscoScannerAdapter()
-            a.setup()
-            adapters.append(a)
-        if _semgrep_available():
-            a = SemgrepMCPAdapter()
             a.setup()
             adapters.append(a)
         if _snyk_available():

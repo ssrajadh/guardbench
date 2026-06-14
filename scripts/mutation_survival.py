@@ -87,9 +87,19 @@ def _load_forms() -> dict[str, dict[str, TestCase]]:
                 continue
             forms[parent][form] = _make_test_case(v)
 
-    # Filter to seeds that have all three forms.
-    complete = {sid: f for sid, f in forms.items() if {"orig", "light", "heavy"} <= set(f)}
-    return complete
+    # Fail fast if any seed is missing a variant: a silently-dropped triple
+    # would shrink denominators without an explicit integrity error (audit r4).
+    incomplete = {
+        sid: sorted({"orig", "light", "heavy"} - set(f))
+        for sid, f in forms.items()
+        if not {"orig", "light", "heavy"} <= set(f)
+    }
+    if incomplete:
+        detail = ", ".join(
+            f"{sid} (missing {','.join(m)})" for sid, m in sorted(incomplete.items())
+        )
+        raise SystemExit(f"corpus integrity error — seeds missing variants: {detail}")
+    return dict(forms)
 
 
 def _build_adapters(filter_names: set[str] | None) -> list:
@@ -151,15 +161,20 @@ def _row(seed_id: str, form: str, scanner: str, run_index: int, r: Result) -> di
     }
 
 
-def _existing_pairs(csv_path: Path) -> set[tuple[str, str, str]]:
-    """Read existing CSV (if any) and return done (seed_id, form, scanner) keys."""
+def _existing_counts(csv_path: Path) -> dict[tuple[str, str, str], int]:
+    """Read existing CSV (if any) and return per-(seed, form, scanner) run counts.
+
+    Resume is run-granular, not triple-granular: a triple that crashed partway
+    (e.g. 1 of 3 LLM trials written) is resumed up to the expected count rather
+    than treated as done on the strength of a single row (audit r4).
+    """
+    counts: dict[tuple[str, str, str], int] = defaultdict(int)
     if not csv_path.exists():
-        return set()
-    done = set()
+        return counts
     with csv_path.open() as f:
         for row in csv.DictReader(f):
-            done.add((row["seed_id"], row["form"], row["scanner"]))
-    return done
+            counts[(row["seed_id"], row["form"], row["scanner"])] += 1
+    return counts
 
 
 def _append_rows(csv_path: Path, rows: list[dict], write_header: bool) -> None:
@@ -182,14 +197,21 @@ def run_experiment(
     if write_header and OUT_CSV.exists():
         OUT_CSV.unlink()  # fresh run; overwrite
 
-    done_pairs = _existing_pairs(OUT_CSV) if resume else set()
-    if done_pairs:
-        print(f"[resume] skipping {len(done_pairs)} (seed, form, scanner) triples already in CSV",
-              file=sys.stderr)
+    def _expected(name: str) -> int:
+        return n_llm if name in LLM_BACKED else 1
+
+    done_counts = _existing_counts(OUT_CSV) if resume else defaultdict(int)
+    if done_counts:
+        n_complete = sum(
+            1 for (s, f, sc), c in done_counts.items() if c >= _expected(sc)
+        )
+        print(f"[resume] {len(done_counts)} triples in CSV; {n_complete} already at "
+              f"expected run count, the rest will be topped up", file=sys.stderr)
 
     total = sum(
         1 for sid in forms for form in ("orig", "light", "heavy")
-        for a in adapters if (sid, form, a.name) not in done_pairs
+        for a in adapters
+        if done_counts.get((sid, form, a.name), 0) < _expected(a.name)
     )
     done = 0
     t_start = time.monotonic()
@@ -200,11 +222,14 @@ def run_experiment(
         for form in ("orig", "light", "heavy"):
             tc = forms[sid][form]
             for adapter in adapters:
-                if (sid, form, adapter.name) in done_pairs:
+                expected = _expected(adapter.name)
+                have = done_counts.get((sid, form, adapter.name), 0)
+                if have >= expected:
                     continue
-                n_runs = n_llm if adapter.name in LLM_BACKED else 1
+                n_runs = expected - have  # only the missing runs
                 results = _evaluate_one(adapter, tc, n_runs)
-                rows = [_row(sid, form, adapter.name, i, r) for i, r in enumerate(results)]
+                rows = [_row(sid, form, adapter.name, have + i, r)
+                        for i, r in enumerate(results)]
                 _append_rows(OUT_CSV, rows, write_header=first_write)
                 first_write = False
 
@@ -268,6 +293,14 @@ def write_rollup_and_summary(adapters_used: list[str]) -> None:
         (r["seed_id"], r["form"], r["scanner"]): r["majority_verdict"]
         for r in rollup_rows
     }
+    # LLM-judge failures: triples where the judge returned no usable verdict
+    # (API/connection error or unparseable output), tagged `llm_failure` by the
+    # cisco adapter. A subset of the error bucket, counted separately so judge
+    # unreliability is visible and never read as an allow (audit r4 bug 2).
+    llm_fail_idx: dict[tuple[str, str, str], bool] = {
+        key: any("llm_failure" in (r["error"] or "") for r in rs)
+        for key, rs in grouped.items()
+    }
     seed_ids = sorted({r["seed_id"] for r in rollup_rows})
     forms = ("orig", "light", "heavy")
     scanners = adapters_used
@@ -285,17 +318,66 @@ def write_rollup_and_summary(adapters_used: list[str]) -> None:
 
     md.append("## Per-scanner block rate by form")
     md.append("")
-    md.append("Fraction of seeds the scanner blocks for each form.")
+    md.append("Fraction of *evaluated* seeds the scanner blocks for each form. Triples "
+              "where every run errored (timeout / no output / malformed JSON / adapter "
+              "exception) are excluded from the denominator and reported separately under "
+              "\"Scanner errors\" below — a crash is not an allow.")
+    md.append("")
+    md.append("> Note: LLM-judge failures (API errors / unparseable output) are caught — "
+              "mcpscanner logs them at ERROR to stdout, which breaks the --raw JSON parse, "
+              "so they surface as `llm_failure` errors and are excluded here (see "
+              "\"LLM-judge failures\" below), not scored as allows. The only residual "
+              "blind spot would be a judge failure that still emits clean JSON with empty "
+              "findings — not observed in the subprocess path (audit r4, bug 2).")
     md.append("")
     md.append("| scanner | orig | light | heavy |")
     md.append("|---|---|---|---|")
     for s in scanners:
         cells = []
         for form in forms:
-            n = sum(1 for sid in seed_ids if idx.get((sid, form, s)) == "block")
-            total_n = sum(1 for sid in seed_ids if (sid, form, s) in idx)
-            pct = (100 * n / total_n) if total_n else 0
-            cells.append(f"{n}/{total_n} ({pct:.0f}%)")
+            verdicts = [idx[(sid, form, s)] for sid in seed_ids if (sid, form, s) in idx]
+            n_block = sum(1 for v in verdicts if v == "block")
+            n_eval = sum(1 for v in verdicts if v in ("block", "allow"))
+            pct = (100 * n_block / n_eval) if n_eval else 0
+            cells.append(f"{n_block}/{n_eval} ({pct:.0f}%)" if n_eval else "0/0 (—)")
+        md.append(f"| `{s}` | " + " | ".join(cells) + " |")
+    md.append("")
+
+    # ---- error bucket (excluded from the rates above) ----
+    md.append("## Scanner errors by form")
+    md.append("")
+    md.append("Triples where every run errored, excluded from the block-rate and "
+              "survival denominators above. A nonzero count here means a rate is computed "
+              "over fewer than the full seed set for that scanner/form.")
+    md.append("")
+    md.append("| scanner | orig | light | heavy |")
+    md.append("|---|---|---|---|")
+    for s in scanners:
+        cells = [
+            str(sum(1 for sid in seed_ids if idx.get((sid, form, s)) == "error"))
+            for form in forms
+        ]
+        md.append(f"| `{s}` | " + " | ".join(cells) + " |")
+    md.append("")
+
+    # ---- LLM-judge failures (subset of errors above) ----
+    md.append("## LLM-judge failures by form")
+    md.append("")
+    md.append("Triples where the LLM judge returned no usable verdict — API/connection "
+              "error, or unparseable model output (the Nemotron-style incompatibility) — "
+              "detected from mcpscanner's ERROR output and tagged `llm_failure`. A subset "
+              "of the errors above, surfaced separately so judge unreliability is visible "
+              "and never scored as an allow. A nonzero count means that scanner/form's "
+              "rate is over fewer than the full seed set; a large count means the judge "
+              "run was unreliable and should be re-run or the model reconsidered.")
+    md.append("")
+    md.append("| scanner | orig | light | heavy |")
+    md.append("|---|---|---|---|")
+    for s in scanners:
+        cells = [
+            str(sum(1 for sid in seed_ids if llm_fail_idx.get((sid, form, s))))
+            for form in forms
+        ]
         md.append(f"| `{s}` | " + " | ".join(cells) + " |")
     md.append("")
 
@@ -305,22 +387,25 @@ def write_rollup_and_summary(adapters_used: list[str]) -> None:
     md.append("For each (seed, scanner) where the scanner blocked the *original*, "
               "did the light/heavy variant also block? Counts only over the subset "
               "where the original was blocked (so a scanner that misses the original "
-              "has zero seeds in this view).")
+              "has zero seeds in this view). A variant whose triple wholly errored is "
+              "excluded from that variant's denominator (unevaluable != survived), so "
+              "the light and heavy denominators can differ from seeds-blocked-orig.")
     md.append("")
     md.append("| scanner | seeds-blocked-orig | light-survival | heavy-survival |")
     md.append("|---|---|---|---|")
     for s in scanners:
         seeds_orig_blocked = [sid for sid in seed_ids if idx.get((sid, "orig", s)) == "block"]
-        l_survived = sum(1 for sid in seeds_orig_blocked if idx.get((sid, "light", s)) == "block")
-        h_survived = sum(1 for sid in seeds_orig_blocked if idx.get((sid, "heavy", s)) == "block")
         if not seeds_orig_blocked:
             md.append(f"| `{s}` | 0 | — | — |")
             continue
-        n = len(seeds_orig_blocked)
-        md.append(
-            f"| `{s}` | {n} | {l_survived}/{n} ({100*l_survived/n:.0f}%) | "
-            f"{h_survived}/{n} ({100*h_survived/n:.0f}%) |"
-        )
+        cells = []
+        for form in ("light", "heavy"):
+            evaluated = [sid for sid in seeds_orig_blocked
+                         if idx.get((sid, form, s)) in ("block", "allow")]
+            survived = sum(1 for sid in evaluated if idx.get((sid, form, s)) == "block")
+            ne = len(evaluated)
+            cells.append(f"{survived}/{ne} ({100*survived/ne:.0f}%)" if ne else "0/0 (—)")
+        md.append(f"| `{s}` | {len(seeds_orig_blocked)} | {cells[0]} | {cells[1]} |")
     md.append("")
 
     # ---- anomalies ----
@@ -350,9 +435,10 @@ def write_rollup_and_summary(adapters_used: list[str]) -> None:
 
     md.append("### Mutation broke malice")
     md.append("")
-    md.append("Cases where the original blocked but BOTH variants slipped past — "
-              "candidate cases for the mutation operator destroying the malicious "
-              "signal. (One-variant misses are more commonly a scanner gap.)")
+    md.append("Cases where the original blocked but BOTH variants were evaluated and "
+              "slipped past (allow) — candidate cases for the mutation operator "
+              "destroying the malicious signal. (One-variant misses are more commonly a "
+              "scanner gap. Errored variants are not counted as slips.)")
     md.append("")
     md.append("| seed | scanner | orig | light | heavy |")
     md.append("|---|---|---|---|---|")
@@ -362,7 +448,7 @@ def write_rollup_and_summary(adapters_used: list[str]) -> None:
             o = idx.get((sid, "orig", s))
             l = idx.get((sid, "light", s))
             h = idx.get((sid, "heavy", s))
-            if o == "block" and l != "block" and h != "block":
+            if o == "block" and l == "allow" and h == "allow":
                 md.append(f"| `{sid}` | `{s}` | block | {l} | {h} |")
                 broken += 1
     if not broken:

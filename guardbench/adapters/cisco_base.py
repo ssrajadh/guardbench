@@ -31,6 +31,21 @@ _TIMEOUT_SECONDS = int(os.environ.get("MCP_SCANNER_TIMEOUT", "60"))
 # Severity values the scanner considers unsafe.
 _UNSAFE_SEVERITIES = frozenset({"HIGH", "MEDIUM", "CRITICAL"})
 
+# mcp-scanner logs analyzer failures at ERROR to *stdout* (its logging handler
+# is a stdout StreamHandler), which corrupts the --raw JSON we parse. When the
+# LLM judge fails (API/connection error, or unparseable model output), the scan
+# still prints empty findings — but the ERROR lines break json.loads first, so
+# the failure surfaces to us as a parse error rather than a silent allow. We key
+# on these markers to label such rows `llm_failure` (vs a generic malformed_json)
+# so judge outages can be counted and excluded, not scored as detections.
+# (audit r4 bug 2; verified 2026-06-06.)
+_LLM_FAILURE_MARKERS = (
+    "LLM analysis failed",
+    "LLM API error",
+    "Failed to parse LLM response",
+    "Unexpected error parsing LLM response",
+)
+
 # mcp-scanner LLM provider config env vars. The scanner reads these directly
 # via its CONSTANTS module — we don't pass them on the CLI. Documented here
 # so the adapter's setup() can raise an informative error early.
@@ -118,8 +133,11 @@ class CiscoBaseAdapter(ToolAdapter):
             "inputSchema": av.get("inputSchema", {"type": "object", "properties": {}}),
         }
         # Handler isn't part of the canonical MCP tools/list response, but the
-        # static_analyzer serializes the whole tool dict (minus description)
-        # and scans it. Including handler lets YARA/LLM see the executable body.
+        # static_analyzer serializes the whole tool dict (minus description) and
+        # scans that JSON, so YARA sees the executable body. NOTE: the LLM
+        # analyzer does NOT — its _parse_tool_content reads only description +
+        # inputSchema.properties and discards handler (verified, audit r4). So
+        # handler inclusion benefits cisco-static/hybrid-YARA only, not cisco-llm.
         if av.get("handler"):
             tool["handler"] = av["handler"]
         tools_path = os.path.join(tmpdir, f"tools-{test_case_id}.json")
@@ -206,16 +224,23 @@ class CiscoBaseAdapter(ToolAdapter):
         try:
             raw = json.loads(stdout)
         except json.JSONDecodeError as exc:
+            # Distinguish an LLM-judge failure (stdout polluted by mcpscanner's
+            # ERROR log) from genuinely malformed scanner JSON, so judge outages
+            # can be counted rather than buried in a generic parse error.
+            is_llm_fail = any(m in stdout for m in _LLM_FAILURE_MARKERS)
             return Result(
                 test_case_id=test_case.id,
                 tool_name=self.name,
                 blocked=False,
                 confidence=0.0,
-                explanation=f"malformed JSON from scanner: {exc}",
+                explanation=(
+                    "LLM judge failed (no usable verdict); see stdout markers"
+                    if is_llm_fail else f"malformed JSON from scanner: {exc}"
+                ),
                 latency_ms=latency_ms,
                 raw_output={"stdout_head": stdout[:500]},
                 timestamp=datetime.now(timezone.utc),
-                error="malformed_json",
+                error="llm_failure" if is_llm_fail else "malformed_json",
             )
 
         return self._parse(test_case, raw, latency_ms, skipped)
@@ -229,10 +254,25 @@ class CiscoBaseAdapter(ToolAdapter):
         latency_ms: int,
         skipped: Optional[list[str]] = None,
     ) -> Result:
-        threats: list[dict] = []
+        # raw is expected to be a list of per-(tool|prompt|resource) result
+        # dicts. Any other valid-JSON shape (e.g. a dict) is an unexpected
+        # scanner contract — surface it as an error, not a silent "no threats"
+        # which would read as a clean allow (audit r4).
+        if not isinstance(raw, list):
+            return Result(
+                test_case_id=test_case.id,
+                tool_name=self.name,
+                blocked=False,
+                confidence=0.0,
+                explanation=f"unexpected scanner output shape: {type(raw).__name__}",
+                latency_ms=latency_ms,
+                raw_output={"scan_output": raw},
+                timestamp=datetime.now(timezone.utc),
+                error="unexpected_output_shape",
+            )
 
-        # raw is a list of per-(tool|prompt|resource) result dicts.
-        for item in raw if isinstance(raw, list) else []:
+        threats: list[dict] = []
+        for item in raw:
             is_safe = item.get("is_safe", True)
             findings = item.get("findings", {})
 
