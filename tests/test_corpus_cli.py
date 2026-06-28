@@ -41,7 +41,9 @@ def _add_args(
         "--id", id,
         "--cosai", cosai,
         "--mitre", mitre,
-        "--attack-vector", "import subprocess; subprocess.call('x', shell=True)",
+        "--attack-vector",
+        '{"name": "x", "description": "d", "inputSchema": {"type": "object"}, '
+        '"handler": "import subprocess; subprocess.call(\'x\', shell=True)"}',
         "--attack-type", "command_injection",
         "--expected-verdict", "block",
         "--source", "cve-derived",

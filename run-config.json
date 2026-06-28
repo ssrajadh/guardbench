@@ -1,0 +1,48 @@
+{
+  "_comment": "Pinned configuration for the GuardBench measurement runs reported in PAPER.md Section 8. The harness reads judge config from environment variables (MCP_SCANNER_LLM_*); this file records the exact settings used so the runs are reproducible. audit/ outputs are gitignored; rollups are snapshotted under audit/full/.",
+  "corpus": {
+    "seeds": "guardbench/corpus/corpus_seeds.json",
+    "light": "guardbench/corpus/corpus_light.json",
+    "heavy": "guardbench/corpus/corpus_heavy.json",
+    "seeds_count": 54,
+    "forms": ["orig", "light", "heavy"],
+    "instances": 162
+  },
+  "scanners": ["baseline", "cisco-static", "cisco-llm", "cisco-hybrid", "snyk-agent-scan"],
+  "runs": {
+    "primary_recall": {
+      "harness": "scripts/mutation_survival.py",
+      "n_llm": 3,
+      "judge_model": "openai/openai/gpt-oss-120b",
+      "judge_base_url": "https://integrate.api.nvidia.com/v1",
+      "judge_family": "gpt-oss (OpenAI open-weights)",
+      "snapshot": "audit/full/e1e2-gptoss.{csv,md,rollup}"
+    },
+    "fpr": {
+      "harness": "scripts/fpr.py",
+      "n_llm": 3,
+      "judge_model": "openai/openai/gpt-oss-120b",
+      "benign_sets": {
+        "mined": "guardbench/corpus/benign/corpus_benign_mined.json",
+        "synthetic": "guardbench/corpus/benign/corpus_benign_synthetic.json"
+      },
+      "cohorts": ["mined", "synthetic", "dual_use"],
+      "dual_use_excluded_from_headline": true,
+      "snapshot": "audit/fpr/fpr.{csv,rollup.csv,md}"
+    },
+    "secondary_judge_crosscheck": {
+      "harness": "scripts/mutation_survival.py",
+      "scanners": ["cisco-llm", "cisco-hybrid"],
+      "n_llm": 1,
+      "judge_model": "openai/accounts/fireworks/models/deepseek-v4-pro",
+      "judge_base_url": "https://api.fireworks.ai/inference/v1",
+      "judge_family": "DeepSeek (cross-family vs primary)",
+      "rationale": "NIM free tier throttles capable cross-family judges under sustained load; Fireworks deepseek-v4-pro is the reliable path. The leading openai/ prefix routes LiteLLM to the OpenAI-compatible client.",
+      "snapshot": "audit/full/e1e2-deepseek-v4pro.{csv,md,rollup}"
+    }
+  },
+  "scanner_env": {
+    "MCP_SCANNER_LLM_MAX_RETRIES": "1",
+    "MCP_SCANNER_TIMEOUT": "300"
+  }
+}

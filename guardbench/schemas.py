@@ -17,7 +17,7 @@ class TestCase(BaseModel):
     attack_vector: str
     attack_type: str
     expected_verdict: Literal["block", "allow"]
-    source: Literal["cve-derived", "taxonomy-derived", "synthetic"]
+    source: Literal["cve-derived", "taxonomy-derived", "synthetic", "mined"]
     obfuscation_level: Literal["none", "light", "heavy"]
     cve_reference: Optional[str] = None
     # Ground-truth target for what a detector should flag; kept separate from

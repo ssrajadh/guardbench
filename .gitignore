@@ -21,8 +21,6 @@ audit/mutation-survival.md
 /tmp/
 notes/
 
-# AI-generated docs, analysis & worksheets — not needed to reproduce the experiment
-# (includes PAPER.md and all of audit/. Force-add deliberately if ever wanted.)
 *.md
 !README.md
 audit/
