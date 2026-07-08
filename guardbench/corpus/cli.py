@@ -60,6 +60,7 @@ def cmd_add(args: argparse.Namespace, *, stdout: IO[str]) -> int:
         "parent_id": args.parent_id,
         "review_status": args.review_status,
         "labeling_notes": args.notes,
+        "expected_detection_signal": args.expected_detection_signal,
     }
     try:
         entry = CorpusEntry.model_validate(new_data)
@@ -213,13 +214,15 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--attack-vector", required=True)
     a.add_argument("--attack-type", required=True)
     a.add_argument("--expected-verdict", choices=["block", "allow"], required=True)
-    a.add_argument("--source", choices=["cve-derived", "taxonomy-derived", "synthetic"], required=True)
+    a.add_argument("--source", choices=["cve-derived", "taxonomy-derived", "synthetic", "mined"], required=True)
     a.add_argument("--obfuscation", choices=["none", "light", "heavy"], default="none")
     a.add_argument("--cve", default=None)
     a.add_argument("--created-by", choices=["human", "llm_variant", "claude_code"], required=True)
     a.add_argument("--parent-id", default=None)
     a.add_argument("--review-status", choices=["draft", "reviewed", "approved"], default="draft")
     a.add_argument("--notes", default=None)
+    a.add_argument("--expected-detection-signal", default=None,
+                   help="ground-truth: the component(s) and mechanism a correct detector must flag")
     a.set_defaults(func=lambda ns: cmd_add(ns, stdout=sys.stdout))
 
     ls = sub.add_parser("list", help="one-line summary per entry")

@@ -31,13 +31,28 @@ SEEDS = ROOT / "guardbench" / "corpus" / "corpus_seeds.json"
 
 
 def _surface(signal: str) -> str:
-    """Map an expected_detection_signal to its attack-surface family (prefix before ':')."""
+    """Map an expected_detection_signal to its attack-surface family (§8.3).
+
+    The prefix before ':' names the component(s) carrying the malice. Signals use
+    compound prefixes when malice spans fields (e.g. ``description+inputSchema``,
+    ``name+description``). We fold these into the five families reported in §8.3:
+    a bare ``handler`` is code-surface; ``prompt``/``resource``/``server`` map to
+    their protocol surfaces; every remaining name/description/schema combination
+    is ``tool metadata`` (this includes ``description+handler``, whose primary
+    detectable tell is the metadata, matching the paper's grouping).
+    """
     head = (signal or "").split(":", 1)[0].strip().lower()
-    for key in ("handler", "tool metadata", "metadata", "prompt", "resource",
-                "server instructions", "server"):
-        if head.startswith(key):
-            return {"metadata": "tool metadata", "server": "server instructions"}.get(key, key)
-    return head or "(unspecified)"
+    if head == "handler":
+        return "handler"
+    if head.startswith("prompt"):
+        return "prompt template"
+    if head.startswith("resource"):
+        return "resource content"
+    if head.startswith("server"):
+        return "server instructions"
+    if not head:
+        return "(unspecified)"
+    return "tool metadata"
 
 
 def main() -> int:

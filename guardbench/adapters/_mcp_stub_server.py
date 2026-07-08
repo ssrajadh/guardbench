@@ -4,7 +4,8 @@ Speaks just enough JSON-RPC to satisfy snyk-agent-scan's inspection phase.
 The server advertises capabilities and responds to list/get/read methods
 based on which keys the attack_vector dict populates:
 
-  - Always: tools/list (built from name/description/inputSchema/handler)
+  - Always: tools/list (name/description/inputSchema only — the handler is NOT
+    placed on the wire, matching the real MCP protocol, and no tool is executed)
   - If av['prompt']:   prompts/list, prompts/get
   - If av['resource']: resources/list, resources/read
   - If av['server']:   serverInfo + instructions in initialize result

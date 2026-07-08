@@ -304,22 +304,6 @@
     "labeling_notes": "benign_rationale: URL is a literal pointing at the AWS IMDSv2 endpoint; token-exchange handshake enforced. No caller-controlled host component."
   },
   {
-    "id": "BEN-META-K8S-SA-TOKEN",
-    "cosai_category": "T5",
-    "mitre_technique_id": "T1552.005",
-    "attack_vector": "{\n  \"name\": \"k8s_service_account_token\",\n  \"description\": \"Load the pod's Kubernetes service-account token for downstream API calls.\",\n  \"inputSchema\": {\n    \"type\": \"object\",\n    \"properties\": {},\n    \"required\": []\n  },\n  \"handler\": \"return Path('/var/run/secrets/kubernetes.io/serviceaccount/token').read_text()\"\n}",
-    "attack_type": "internal_metadata_fetch",
-    "expected_verdict": "allow",
-    "source": "synthetic",
-    "obfuscation_level": "none",
-    "cve_reference": null,
-    "created_at": "2026-04-22T03:06:13.300312Z",
-    "created_by": "claude_code",
-    "parent_id": null,
-    "review_status": "reviewed",
-    "labeling_notes": "REJECTED during hard review: Tool returns the raw service-account token to the caller. In an MCP context the caller is a model/agent \u2014 handing it a bearer token is a credential exfiltration primitive, not a benign internal-metadata fetch. A shippable version would use the token internally for a specific downstream call and return only the result. As written I would not ship this; a reviewer would correctly block it. | prior: benign_rationale: Reads the projected service-account token from the standard kubelet mount path \u2014 a file read, not a network fetch, and the path is fixed."
-  },
-  {
     "id": "BEN-META-GCP-PROJECT-ID",
     "cosai_category": "T5",
     "mitre_technique_id": "T1552.005",
@@ -400,22 +384,6 @@
     "labeling_notes": "benign_rationale: Uses simpleeval with numeric/boolean operators only \u2014 no attribute access, no __builtins__. Expression surface is a DSL, not Python."
   },
   {
-    "id": "BEN-EVAL-REPORT-TEMPLATE",
-    "cosai_category": "T3",
-    "mitre_technique_id": "T1059",
-    "attack_vector": "{\n  \"name\": \"render_report_template\",\n  \"description\": \"Render a report template with the given context.\",\n  \"inputSchema\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"template\": {\n        \"type\": \"string\"\n      },\n      \"context\": {\n        \"type\": \"object\"\n      }\n    },\n    \"required\": [\n      \"template\",\n      \"context\"\n    ]\n  },\n  \"handler\": \"env = jinja2.Environment(autoescape=True, undefined=jinja2.StrictUndefined)\\nenv.globals = {'now': datetime.utcnow}\\nreturn env.from_string(template).render(**context)\"\n}",
-    "attack_type": "sandboxed_eval",
-    "expected_verdict": "allow",
-    "source": "synthetic",
-    "obfuscation_level": "none",
-    "cve_reference": null,
-    "created_at": "2026-04-22T03:06:13.300312Z",
-    "created_by": "claude_code",
-    "parent_id": null,
-    "review_status": "reviewed",
-    "labeling_notes": "REJECTED during hard review: Labelled 'sandboxed eval' but the handler uses jinja2.Environment, which is NOT sandboxed. autoescape only controls HTML escaping of output; well-known SSTI escapes (e.g. {{ self.__init__.__globals__ }}) still reach builtins. The sandbox-shaped version would use jinja2.sandbox.SandboxedEnvironment. As written this is a genuine RCE, not a false-positive stress test. | prior: benign_rationale: Jinja2 environment with autoescape and a minimal global set; no access to Python builtins or imports."
-  },
-  {
     "id": "BEN-EVAL-LITERAL-CONFIG",
     "cosai_category": "T3",
     "mitre_technique_id": "T1059",
@@ -480,22 +448,6 @@
     "labeling_notes": "benign_rationale: IDNA encoding applied so search over internationalized domains matches the registry representation. No rendering of the decoded form back to another agent."
   },
   {
-    "id": "BEN-HTMLCOMMENT-MD-SOURCE",
-    "cosai_category": "T2",
-    "mitre_technique_id": "T1027",
-    "attack_vector": "{\n  \"name\": \"render_markdown_with_source\",\n  \"description\": \"Render a markdown doc with a provenance comment at the top.\",\n  \"inputSchema\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"doc_id\": {\n        \"type\": \"string\"\n      },\n      \"rev\": {\n        \"type\": \"string\",\n        \"pattern\": \"^[a-f0-9]{7,40}$\"\n      }\n    },\n    \"required\": [\n      \"doc_id\",\n      \"rev\"\n    ]\n  },\n  \"handler\": \"body = markdown.render(docs.get(doc_id))\\nreturn f'<!-- source: docs/{doc_id}.md rev={rev} -->\\\\n{body}'\"\n}",
-    "attack_type": "html_comment_annotation",
-    "expected_verdict": "allow",
-    "source": "synthetic",
-    "obfuscation_level": "none",
-    "cve_reference": null,
-    "created_at": "2026-04-22T03:06:13.300312Z",
-    "created_by": "claude_code",
-    "parent_id": null,
-    "review_status": "reviewed",
-    "labeling_notes": "REJECTED during hard review: doc_id is interpolated into an HTML comment with no validation. A doc_id containing '-->' (or the UTF-8 variant) closes the comment early, letting caller-supplied text reach the rendered DOM \u2014 classic comment-breakout XSS. Shipping this unguarded would be a real bug, not a look-alike. | prior: benign_rationale: Comment carries only the source path and git rev \u2014 both constants at render time, not derived from user input or external fetch."
-  },
-  {
     "id": "BEN-HTMLCOMMENT-EMAIL-TRACE",
     "cosai_category": "T2",
     "mitre_technique_id": "T1027",
@@ -542,22 +494,6 @@
     "parent_id": null,
     "review_status": "approved",
     "labeling_notes": "benign_rationale: Input passes through re.escape so no metacharacter reaches the engine; the 'regex' feature is effectively a literal search."
-  },
-  {
-    "id": "BEN-REGEX-WORKSPACE-GREP",
-    "cosai_category": "T3",
-    "mitre_technique_id": "T1499",
-    "attack_vector": "{\n  \"name\": \"grep_workspace\",\n  \"description\": \"Run a fixed-string grep across the workspace.\",\n  \"inputSchema\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"pattern\": {\n        \"type\": \"string\"\n      }\n    },\n    \"required\": [\n      \"pattern\"\n    ]\n  },\n  \"handler\": \"subprocess.run(['rg', '--fixed-strings', pattern, str(WORKSPACE_ROOT)], check=True)\"\n}",
-    "attack_type": "user_regex_search",
-    "expected_verdict": "allow",
-    "source": "synthetic",
-    "obfuscation_level": "none",
-    "cve_reference": null,
-    "created_at": "2026-04-22T03:06:13.300312Z",
-    "created_by": "claude_code",
-    "parent_id": null,
-    "review_status": "reviewed",
-    "labeling_notes": "REJECTED during hard review: subprocess.run(['rg', '--fixed-strings', pattern, root]) \u2014 a pattern starting with '-' is interpreted as a flag by rg (e.g. --files, --pre=CMD). The shippable version inserts '--' before pattern or uses '-e pattern'. As written this is argv-injection, not a correctly-scoped benign. | prior: benign_rationale: Delegates to ripgrep with --fixed-strings, so the user's pattern is never compiled as a regex at all."
   },
   {
     "id": "BEN-REGEX-EVENT-FILTER",
@@ -624,4 +560,3 @@
     "labeling_notes": "relabel_note: Signed-release verification is the textbook T4 control. The pattern the scanner sees is 'gpg.verify + extract' \u2014 a supply-chain integrity surface, not generic archive extraction. | benign_rationale: Release artifacts are GPG-verified before extraction; extract target is a fresh tempdir with `filter='data'`."
   }
 ]
-
